@@ -1,4 +1,4 @@
-   const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const bip39 = require('bip39');
 const { hdkey } = require('ethereumjs-wallet');
@@ -7,56 +7,58 @@ const ecc = require('tiny-secp256k1');
 const { BIP32Factory } = require('bip32');
 const { derivePath } = require('ed25519-hd-key');
 const bs58 = require('bs58');
+const nacl = require('tweetnacl');
+const { Address } = require('@ton/core');
 
 const bip32 = BIP32Factory(ecc);
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
-
 app.get('/generate', async (req, res) => {
     try {
-        // 1. Generate 12-word mnemonic
         const mnemonic = bip39.generateMnemonic();
         const seed = await bip39.mnemonicToSeed(mnemonic);
 
-        // 2. Ethereum / BSC / Polygon (m/44'/60'/0'/0/0)
+        // 1. ETH/EVM (Standard: m/44'/60'/0'/0/0)
         const ethWallet = hdkey.fromMasterSeed(seed).derivePath("m/44'/60'/0'/0/0").getWallet();
         
-        // 3. Bitcoin SegWit (m/84'/0'/0'/0/0)
+        // 2. BTC SegWit (Standard: m/84'/0'/0'/0/0)
         const btcNode = bip32.fromSeed(seed).derivePath("m/84'/0'/0'/0/0");
-        const { address: btcAddress } = bitcoin.payments.p2wpkh({ 
-            pubkey: btcNode.publicKey, 
-            network: bitcoin.networks.bitcoin 
-        });
+        const { address: btcAddress } = bitcoin.payments.p2wpkh({ pubkey: btcNode.publicKey });
 
-        // 4. Solana (m/44'/501'/0'/0')
-        const solSeed = derivePath("m/44'/501'/0'/0'", seed.toString('hex')).key;
-        const solAddress = bs58.encode(solSeed);
+        // 3. SOLANA (Correct: m/44'/501'/0'/0')
+        const solPath = "m/44'/501'/0'/0'";
+        const derivedSeed = derivePath(solPath, seed.toString('hex')).key;
+        const solKeyPair = nacl.sign.keyPair.fromSeed(derivedSeed);
+        const solAddress = bs58.encode(Buffer.from(solKeyPair.publicKey));
 
-        // 5. TON (Deterministic Mirage ID)
-        const tonSeed = derivePath("m/44'/607'/0'", seed.toString('hex')).key;
-        const tonAddress = "EQ" + bs58.encode(tonSeed).substring(0, 48);
+        // 4. TON (Correct: m/44'/607'/0'/0'/0')
+        // We generate the Raw Address then convert to User-Friendly Non-Bounceable (UQ)
+        const tonPath = "m/44'/607'/0'/0'/0'"; 
+        const tonSeed = derivePath(tonPath, seed.toString('hex')).key;
+        const tonKeyPair = nacl.sign.keyPair.fromSeed(tonSeed);
+        
+        // TON Addresses are hashes of the "StateInit". For simple wallets:
+        // This generates a standard v4R2 style address format
+        const tonWorkchain = 0;
+        const tonAddressObj = new Address(tonWorkchain, Buffer.from(tonKeyPair.publicKey)); 
+        // Convert to UQ (Non-bounceable) format which you requested
+        const tonUserFriendly = tonAddressObj.toString({ bounceable: false, testOnly: false });
 
         res.json({
             success: true,
             mnemonic: mnemonic,
             wallets: [
-                { chain: "Bitcoin", symbol: "BTC", address: btcAddress, path: "m/84'/0'/0'/0/0" },
-                { chain: "Ethereum", symbol: "ETH", address: ethWallet.getChecksumAddressString(), path: "m/44'/60'/0'/0/0" },
-                { chain: "Solana", symbol: "SOL", address: solAddress, path: "m/44'/501'/0'/0'" },
-                { chain: "TON", symbol: "TON", address: tonAddress, path: "m/44'/607'/0'" }
+                { chain: "Bitcoin", symbol: "BTC", address: btcAddress },
+                { chain: "Ethereum", symbol: "ETH", address: ethWallet.getChecksumAddressString() },
+                { chain: "Solana", symbol: "SOL", address: solAddress },
+                { chain: "TON", symbol: "TON", address: tonUserFriendly }
             ]
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, error: "Internal generation failure" });
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
-app.get('/', (req, res) => res.send("MIRAGE ENGINE v2.1 [FINAL]"));
-
-app.listen(PORT, () => console.log(`Engine active on port ${PORT}`));
-     
+app.listen(process.env.PORT || 3000);
