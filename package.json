@@ -1,7 +1,6 @@
 {
   "name": "mirage-wallet-api",
-  "version": "2.2.1",
-  "description": "Final Stable Multi-Chain Engine",
+  "version": "2.2.2",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
