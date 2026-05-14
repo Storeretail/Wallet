@@ -1,0 +1,13 @@
+{
+  "name": "mirage-wallet-api",
+  "version": "1.1.0",
+  "description": "Professional Multi-Chain Wallet Generation API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@trustwallet/wallet-core": "^4.0.0",
+    "express": "^4.19.2"
+  }
+}
