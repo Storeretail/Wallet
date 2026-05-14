@@ -20,30 +20,25 @@ app.get('/generate', async (req, res) => {
         const mnemonic = bip39.generateMnemonic();
         const seed = await bip39.mnemonicToSeed(mnemonic);
 
-        // 1. ETH/EVM (Standard: m/44'/60'/0'/0/0)
+        // 1. ETH (m/44'/60'/0'/0/0)
         const ethWallet = hdkey.fromMasterSeed(seed).derivePath("m/44'/60'/0'/0/0").getWallet();
         
-        // 2. BTC SegWit (Standard: m/84'/0'/0'/0/0)
+        // 2. BTC SegWit (m/84'/0'/0'/0/0)
         const btcNode = bip32.fromSeed(seed).derivePath("m/84'/0'/0'/0/0");
         const { address: btcAddress } = bitcoin.payments.p2wpkh({ pubkey: btcNode.publicKey });
 
-        // 3. SOLANA (Correct: m/44'/501'/0'/0')
+        // 3. SOLANA (m/44'/501'/0'/0')
         const solPath = "m/44'/501'/0'/0'";
         const derivedSeed = derivePath(solPath, seed.toString('hex')).key;
         const solKeyPair = nacl.sign.keyPair.fromSeed(derivedSeed);
         const solAddress = bs58.encode(Buffer.from(solKeyPair.publicKey));
 
-        // 4. TON (Correct: m/44'/607'/0'/0'/0')
-        // We generate the Raw Address then convert to User-Friendly Non-Bounceable (UQ)
+        // 4. TON (m/44'/607'/0'/0'/0') - Format: UQ (Non-Bounceable)
         const tonPath = "m/44'/607'/0'/0'/0'"; 
         const tonSeed = derivePath(tonPath, seed.toString('hex')).key;
         const tonKeyPair = nacl.sign.keyPair.fromSeed(tonSeed);
         
-        // TON Addresses are hashes of the "StateInit". For simple wallets:
-        // This generates a standard v4R2 style address format
-        const tonWorkchain = 0;
-        const tonAddressObj = new Address(tonWorkchain, Buffer.from(tonKeyPair.publicKey)); 
-        // Convert to UQ (Non-bounceable) format which you requested
+        const tonAddressObj = new Address(0, Buffer.from(tonKeyPair.publicKey)); 
         const tonUserFriendly = tonAddressObj.toString({ bounceable: false, testOnly: false });
 
         res.json({
@@ -60,5 +55,7 @@ app.get('/generate', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+app.get('/', (req, res) => res.send("MIRAGE ENGINE v2.2.1 ONLINE"));
 
 app.listen(process.env.PORT || 3000);
