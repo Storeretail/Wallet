@@ -1,13 +1,14 @@
 {
   "name": "mirage-wallet-api",
-  "version": "1.1.0",
-  "description": "Professional Multi-Chain Wallet Generation API",
+  "version": "1.2.0",
+  "description": "Optimized Multi-Chain Wallet Engine",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "@trustwallet/wallet-core": "^4.0.0",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
   }
 }
